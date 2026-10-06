@@ -666,7 +666,9 @@ function renderScene(){
     document.querySelectorAll('.btn').forEach(b=>b.onclick=()=>{
       const c=sc.choices[+b.dataset.i];
       apply(c.fx);if(c.set)for(const k in c.set)S.flags[k]=c.set[k];
-      S.choices.push(S.scene+':'+'ABCD'[+b.dataset.i]);
+      const choice = 'ABCD'[+b.dataset.i];
+if(typeof gtag === 'function') gtag('event','story_choice',{chapter:S.scene,choice:choice});
+S.choices.push(S.scene+':'+choice);
       S.scene=c.go;save();renderScene();
     });
   }else if(sc.ending){
