@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raat 11:30 — Part 1 + Part 2</title>
+<style>
+:root{--bg:#0c0a10;--card:#15121c;--ink:#e9e4ee;--dim:#9a93a6;--rose:#c8456a;--gold:#d9b46a;--line:#2a2535}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,'Times New Roman',serif;line-height:1.75;font-size:18px}
+#app{max-width:640px;margin:0 auto;padding:28px 20px 90px;min-height:100vh}
+h1{font-size:2.6rem;letter-spacing:.06em;margin:.2em 0;color:var(--gold);text-align:center;font-weight:400}
+h2{font-weight:400;color:var(--gold);letter-spacing:.08em;font-size:1.3rem;margin:.2em 0 1em}
+.sub{text-align:center;color:var(--dim);font-style:italic}
+.center{text-align:center}
+.cover{padding-top:18vh}
+.tag{color:var(--rose);letter-spacing:.3em;font-size:.75rem;text-transform:uppercase;text-align:center}
+p{margin:0 0 1.05em}
+.msg{border-left:3px solid var(--rose);padding:.4em 1em;background:#1a1522;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:.95rem}
+button,.btn{font:inherit;cursor:pointer}
+.btn{display:block;width:100%;text-align:left;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:10px 0;transition:.15s}
+.btn:hover,.btn:focus{border-color:var(--rose);background:#1d1727;outline:none}
+.btn b{color:var(--rose);margin-right:.5em}
+.go{display:block;margin:28px auto 0;background:var(--rose);color:#fff;border:0;border-radius:30px;padding:12px 34px;font:inherit;letter-spacing:.08em}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+label{display:block;margin:16px 0 6px;color:var(--gold);font-size:.9rem;letter-spacing:.06em;text-transform:uppercase}
+input[type=text]{width:100%;background:#0f0c15;border:1px solid var(--line);color:var(--ink);font:inherit;padding:11px;border-radius:8px}
+.opts{display:flex;gap:8px;flex-wrap:wrap}
+.opts label.o{margin:0;text-transform:none;color:var(--ink);letter-spacing:0;font-size:1rem;border:1px solid var(--line);padding:9px 14px;border-radius:20px;cursor:pointer}
+.opts input{display:none}
+.opts input:checked+span{color:var(--rose);font-weight:bold}
+.opts label.o:has(input:checked){border-color:var(--rose);background:#1d1727}
+.divider{text-align:center;color:var(--line);letter-spacing:.5em;margin:26px 0}
+.choicehead{text-align:center;color:var(--gold);letter-spacing:.2em;font-size:.85rem;margin:34px 0 6px;border-top:1px solid var(--line);padding-top:18px}
+.chap{color:var(--rose);letter-spacing:.25em;font-size:.75rem;text-transform:uppercase;margin-bottom:2px}
+.small{font-size:.8rem;color:var(--dim)}
+.err{color:#e57373;font-size:.9rem;min-height:1.2em}
+.end{border:1px solid var(--gold);border-radius:12px;padding:22px;margin-top:20px;text-align:center}
+.fade{animation:f .5s ease}
+@keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============ STATE ============ */
+const VARS=['courage','trust','attraction','romance','jealousy','emotional','suspicion','curiosity','risk','loyalty','selfControl','impulsive','confidence','morality','danger'];
+const KEY='raat1130_save_v2';
+function fresh(){const s={name:'',pg:'n',li:'',lg:'f',fr:'',fg:'m',scene:'cover',flags:{},clues:[],choices:[],v:{}};VARS.forEach(k=>s.v[k]=0);return s}
+let S=fresh();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const old=JSON.parse(r);const base=fresh();S=Object.assign(base,old);S.flags=Object.assign({},base.flags,old.flags||{});S.clues=Array.isArray(old.clues)?old.clues:[];S.choices=Array.isArray(old.choices)?old.choices:[];S.v=Object.assign({},base.v,old.v||{});S._seen=old._seen&&typeof old._seen==='object'?old._seen:{};if(!['m','f','n'].includes(S.pg))S.pg='n';if(!['m','f'].includes(S.lg))S.lg='f';if(!['m','f'].includes(S.fg))S.fg=S.pg==='f'?'f':'m';return true}}catch(e){}return false}
+
+/* ============ TEXT TOKENS ============ */
+/* {NAME} {LI} {FRIEND}
+   {P:masc|fem}  tumhare gender ke hisaab se (neutral = masc/plural form, jo "tum" ke saath natural hai)
+   {L:masc|fem}  love interest ke gender ke hisaab se
+   {F:masc|fem}  friend ke gender ke hisaab se  */
+function T(str){
+  const pf=S.pg==='f', lf=S.lg==='f', ff=S.fg==='f';
+  return str
+   .replace(/\{NAME\}/g,S.name)
+   .replace(/\{LI\}/g,S.li)
+   .replace(/\{FRIEND\}/g,S.fr)
+   .replace(/\{P:([^|}]*)\|([^}]*)\}/g,(m,a,b)=>pf?b:a)
+   .replace(/\{L:([^|}]*)\|([^}]*)\}/g,(m,a,b)=>lf?b:a)
+   .replace(/\{F:([^|}]*)\|([^}]*)\}/g,(m,a,b)=>ff?b:a);
+}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+
+/* ============ PERSONALITY ENGINE (hidden) ============ */
+function archetype(){
+  const v=S.v;
+  const sc={
+    bold: v.courage+v.confidence+v.impulsive,
+    shy: v.emotional+v.romance+v.selfControl,
+    protective: v.loyalty*1.5+v.trust*0.5,
+    suspicious: v.suspicion*1.4+v.curiosity*0.5,
+    risky: v.risk+v.danger+v.impulsive
+  };
+  let best='shy',bv=-99;
+  for(const k in sc){if(sc[k]>bv){bv=sc[k];best=k}}
+  if(bv<=1)return 'neutral';
+  return best;
+}
+function apply(fx){if(!fx)return;for(const k in fx){S.v[k]=(S.v[k]||0)+fx[k]}}
+const has=f=>!!S.flags[f];
+const hasClue=c=>S.clues.includes(c);
+
+/* ============ STORY ============ */
+/* paragraph = string | {if:fn, t:string}. scene.next = id (single "Aage badho"). scene.choices = exactly 4. */
+const ST={};
+
+/* ---------- CHAPTER 1 ---------- */
+ST.c1={chap:'Chapter 1 — Unknown Number',p:[
+"Kasauli Ridge mein October ki raat jaldi utarti hai.",
+"Hostel ke kamre ki khidki se tumhe purani library ki dhundhli chhat dikhti hai — wahi library jo college ne teen saal pehle band kar di thi. Bahar deodar ke ped hawa mein ek dusre se kuch kehte rehte hain. Neeche mess ki taraf se tadke ki smell upar tak aa rahi hai.",
+"Tumhare haath mein chai ka cup thoda thanda ho chuka hai. Final-year ka assignment laptop pe khula hai, aur tum usse {P:ghoor rahe|ghoor rahi} ho jaise woh khud ko likh dega.",
+"Tabhi phone vibrate hota hai.",
+"Unknown number.",
+"Ek message.",
+{t:"<m>Agar tumhe sach jaanna hai… toh aaj raat 11:30 baje purani library ke peeche aana. Akele. {NAME}, kisi ko mat batana.</m>"},
+"Tum kuch seconds tak screen ko bas {P:dekhte rahe|dekhti rahi}.",
+"Phir ek thought aaya — ye message tumhare number tak pahucha kaise? Ye number toh college ke directory mein bhi nahi hai. Aur… {NAME}? Tumhe aaj tak is naam se kisi ne 'sach' ke saath nahi joda tha.",
+"Ghadi mein 10:41 hue hain. Kamre ki light halki si flicker karti hai, jaise building bhi ye message padh rahi ho.",
+{if:()=>S.fr,t:"Table ke us kone pe {FRIEND} ki chhodi hui hoodie padi hai. {F:Wo|Wo} aaj tumhare saath assignment karne {F:aaya tha|aayi thi}, par {F:thaka hua|thaki hui} hone ki wajah se jaldi {F:so gaya|so gayi}."},
+],choices:[
+{t:"Kisi ko bataye bina, sahi 11:30 pe akele jao.",fx:{courage:2,risk:1,curiosity:2,danger:1},set:{wentAlone:1},go:'c1_library'},
+{t:"{FRIEND} ko jaga ke saath le jao — akele jaana sach mein safe nahi lagta.",fx:{trust:1,loyalty:1,selfControl:1},set:{tookFriend:1},go:'c1_library'},
+{t:"Screenshot lo, number trace karne ki koshish karo, aur 11:30 se pehle library ke aas-paas chhup ke dekh lo ki koi hai ya nahi.",fx:{suspicion:2,curiosity:2,selfControl:1,confidence:1},set:{scouted:1},go:'c1_library'},
+{t:"Message ignore karo. Ye prank ho sakta hai, aur raat ko ghoomna bewakoofi hai.",fx:{selfControl:2,suspicion:1,romance:-1},set:{ignored:1},go:'c1_ignored'},
+]};
+
+ST.c1_ignored={chap:'Chapter 1 — Unknown Number',p:[
+"Tumne phone ulta rakh diya. Laptop pe wapas {P:aaye|aayi}. Assignment ke teen paragraph likhe — shayad.",
+"11:30 ho gaye. 11:45. Phir 12:10.",
+"Neeche ground floor pe kisi darwaze ke band hone ki awaaz aayi.",
+"Subah 6:20 pe tumhari aankh khuli toh kamre ke darwaze ke neeche se ek safed envelope andar sarka hua tha. Uspe tumhara naam nahi tha. Sirf ek line:",
+{t:"<m>Tumne aana chahiye tha.</m>"},
+"Andar ek purani photograph thi. Tum us par ek second mein pehchaan {P:gaye|gayi} — nau saal ki umar, kaale-safed frame mein, kisi ke haath thaame hue. Aur us doosre bachche ke peeche… {LI} ka chehra tha. Ya shayad nahi tha. Bachpan ki photo mein aisa lagna mushkil hai.",
+"Tumne photo palti. Peeche pencil se likha tha: <i>11:30</i>.",
+],setf:{gotPhotoEarly:1,missedLibrary:1},fx:{curiosity:1,danger:1},clue:'photo_1130',next:'c2'};
+
+ST.c1_library={chap:'Chapter 1 — Unknown Number',p:[
+"11:20 ke aas-paas.",
+"Purani library ke peeche jaane wala raasta ek gili kachhi gali hai, jahan ek lamp-post ab bhi jalta hai aur baaki sab bujhe pade hain. Hawa mein sade hue patton aur geeli mitti ki smell hai.",
+{if:()=>has('tookFriend'),t:"{FRIEND} tumhare peeche {F:chal raha|chal rahi} hai — saans thami hui. 'Yaar,' wo {F:fusfusata|fusfusati} hai, 'agar ye koi psycho nikla toh main tumhe maaf nahi {F:karunga|karungi}.' Tum {P:halka sa has dete|halka sa has deti} ho, par tumhari hansi mein sukoon nahi hai."},
+{if:()=>has('scouted'),t:"Tum 11:25 ke aas-paas hi {P:pahunch gaye the|pahunch gayi thi}. Ek purani laundry-van ki aad se tumne pura peeche ka hissa dekha — koi nahi. Bas ek khidki ka sheesha thoda toota hua, aur uske andar kisi torch ki ek patli si roshni."},
+{if:()=>has('wentAlone'),t:"Akele chalte hue tumhe apne kadmon ki awaaz sunai de rahi hai. Har kadam pe lagta hai kuch aur kadm bhi chal rahe hain."},
+"Library ki peeche wali deewar par ek dhaatu ka darwaza hai — zang laga hua, par taala khula hua.",
+"Darwaze ke upar chaak se ek chhota sa number likha tha: <b>114</b>.",
+"Tumne ghadi dekhi. 11:30.",
+"Andar se halki si awaaz aayi — jaise koi kagaz palat raha ho.",
+],fx:{curiosity:1},clue:'door_114',next:'c2'};
+
+/* ---------- CHAPTER 2 ---------- */
+ST.c2={chap:'Chapter 2 — Photograph',p:[
+{if:()=>has('gotPhotoEarly'),t:"Subah ki dhoop khidki se aa rahi hai, par tumhare haath mein pakdi hui photo ko roshni bhi garam nahi kar pa rahi."},
+{if:()=>!has('gotPhotoEarly'),t:"Darwaze ke andar ek chhota sa store-room tha. Dhool, tooti hui kursiyan, aur ek lakdi ki table jis par ek lamp jal raha tha. Table ke beech mein ek akeli photograph padi thi."},
+{if:()=>!has('gotPhotoEarly'),t:"Tum us photo ko uthate ho. Kaale-safed. Do bachche, ek doosre ka haath pakde. Ek tum — nau saal ke. Doosra… aur peeche khade teesre ka chehra jale hue kinaare se kata hua hai."},
+"Tumhe yaad nahi hai ki ye photo kab kheenchi gayi. Tumhe toh ye bhi yaad nahi ki tumhara bachpan Ridgeway Boarding House mein beeta tha.",
+"Tumhare papa ne hamesha kaha — 'Tum bahut {P:chhote the|chhoti thi}, ghar mein aag lagi thi, sab bhool jaana hi behtar hai.'",
+"Tum itni hi baat jaante ho: nau saal pehle us boarding house mein aag lagi thi, aur tum us raat ko {P:bach nikle the|bach nikli thi}.",
+{if:()=>!has('missedLibrary'),t:"Peeche se kisi ke kadmo ki awaaz aayi."},
+{if:()=>!has('missedLibrary'),t:"Tum {P:palte|palti}. Darwaze pe {LI} {L:khada|khadi} {L:tha|thi} — {L:ek lamba ladka, kandhe pe bag latkaye|ek lambi ladki, kandhe pe bag latkaye}, saans thodi phooli hui, jaise daud ke {L:aaya|aayi} ho. Uske haath pe ek purana jala hua nishaan tha — kalaayi se kohni tak."},
+{if:()=>!has('missedLibrary'),t:"'Tum yahan?' {LI} ne pehle bola. Awaaz mein ghabrahat thi, ya shayad kuch aur."},
+{if:()=>!has('missedLibrary'),t:"'Main bhi yahi poochna {P:chah raha tha|chah rahi thi},' tumne kaha."},
+{if:()=>!has('missedLibrary'),t:"Ek chup si phaili. Aisi chup jahan dono ke paas poochne ko ek hi sawaal hai aur dono us sawaal se dar rahe hain."},
+{if:()=>has('missedLibrary'),t:"Tumhe nahi pata tha ki library ke peeche jaana chahiye ya nahi. Par tumhe ye pata tha ki {LI} aaj subah canteen mein tumhe dekh kar kuch ajeeb tareeke se {L:ruk gaya|ruk gayi} tha."},
+],next:'c2_choice'};
+
+ST.c2_choice={chap:'Chapter 2 — Photograph',p:[
+{if:()=>!has('missedLibrary'),t:"{LI} ki nazar tumhare haath ki photo par tikki hui hai. Ek second ke liye uske chehre ka rang badal gaya — phir sambhal gaya."},
+{if:()=>has('missedLibrary'),t:"Aaj subah ke baad {LI} se tumhara pehla saamna lecture hall ke bahar hua. {L:Wo|Wo} tumhare haath mein dabi hui photo ki taraf dekh {L:raha|rahi} hai — jaise {L:usne|usne} woh kahin dekhi ho."},
+{if:()=>archetype()==='bold',t:"Tumhari aankhein seedha {LI} ki aankhon mein hain. Tum peeche hatne wale logon mein se nahi ho — aur {LI} ye {L:jaan chuka|jaan chuki} hai."},
+{if:()=>archetype()==='shy',t:"Tumhari ungliyan photo ke kinaare ko halka sa mod rahi hain. Tum nazar {P:chura lete|chura leti} ho, phir chori se wapas {P:dekhte|dekhti} ho. {LI} ye {L:dekh leta|dekh leti} hai."},
+{if:()=>archetype()==='suspicious',t:"Tumhara dimaag pehle se hisaab laga raha hai: ye message {LI} ne bheja ho sakta hai. Ya {L:wo|wo} khud usi jaal mein hai. Tum dono mein se kise zyada pata hai?"},
+],choices:[
+{t:"{LI} ko photo dikhao aur seedhe poochho ki kya wo isme hai.",fx:{trust:2,emotional:1,romance:1,suspicion:-1},set:{showedPhoto:1},go:'c3'},
+{t:"Photo chhupa lo — pehle khud pata karo, phir kisi ko batana.",fx:{suspicion:2,selfControl:1,curiosity:1,trust:-1},set:{hidPhoto:1},go:'c3'},
+{t:"Taana maaro: 'Tum yahan raat ke 11:30 baje kya kar rahe ho? Ye mere liye hi {L:aaye|aayi} ho na?'",fx:{courage:2,confidence:2,impulsive:1,attraction:1},set:{confronted:1},go:'c3'},
+{t:"Photo lekar bhaag jao — jo bhi ho, ab yahan rukna theek nahi.",fx:{risk:2,impulsive:2,danger:1,courage:1},set:{ranAway:1},go:'c3'},
+]};
+
+/* ---------- CHAPTER 3 ---------- */
+ST.c3={chap:'Chapter 3 — Principal Ki Chai',p:[
+"Agli subah ki dhoop Principal ke office ke saamne wale lawn pe aisi padi thi jaise sab kuch normal ho.",
+{if:()=>has('showedPhoto'),t:"{LI} ne tumse sirf ek baat kahi thi: 'Mujhe nahi pata ye photo kisne rakhi. Par mujhe pata hai ki isme kaun hai.' Phir wo {L:chala gaya tha|chali gayi thi}, aur tumne puri raat is line ko ulat-palat ke dekha."},
+{if:()=>has('hidPhoto'),t:"Photo tumhari jeb mein hai. {LI} ke saamne tumne kuch nahi kaha, aur {L:uski|uski} nazar mein ek halka sa sawaal tha jo ab tak tumhare dimaag mein goonj raha hai."},
+{if:()=>has('confronted'),t:"{LI} ne tumhare taane par muskura ke jawab diya tha: 'Tum itne confident ho ki mujhe ya toh darna chahiye ya fida hona chahiye.' Tum aaj tak nahi samajh {P:paaye|paayi} ki wo mazaak tha ya warning."},
+{if:()=>has('ranAway'),t:"Tum kal raat {P:bhaag aaye the|bhaag aayi thi}. Aaj subah {LI} ne tumhe sirf ek message bheja: 'Sab theek hai? Photo ke baad tum itni tezi se {P:gaye|gayi} ki maine dar ke mare tumhe nahi roka.'"},
+"Principal Arvind Mehra tumhe apne office se khud bulaate hain. Wo kam logon ko aise bulaate hain. Wo is college ka chehra hain — shaant, sophisticated, aur har student ke liye ek tarah ke 'doosre pitaji'.",
+"Office mein ilaayachi aur adrak ki chai ki khushboo hai. Mehra sahab ek purani pital ki kettle se khud chai daal rahe hain. 'Baitho, {NAME},' wo kehte hain. 'Tumhare papa ke baad ye college tumhara ghar hai. Sab theek chal raha hai na?'",
+"Kuch ajeeb sa hai us khushboo mein. Tumhe lagta hai tumne ye smell pehle kahin mehsoos ki hai — kisi bahut dhundhli, bahut garam jagah par.",
+"Mehra tumhe kuch der dekhte hain. 'Kal raat ko kuch hua?' wo poochte hain, bina palak jhapkaye. 'Mess ke guard ne kisi ko library ke peeche dekha tha.'",
+],clue:'chai_smell',fx:{curiosity:1},next:'c3_choice'};
+
+ST.c3_choice={chap:'Chapter 3 — Principal Ki Chai',p:[
+"Tumhare haath chai ke cup ko thaame hain, par tumhara dimaag kal raat ki photo par atka hai.",
+{if:()=>has('hidPhoto'),t:"Photo tumhari jeb mein hai — Mehra ki nazar ek pal ke liye tumhari jeb ki taraf gayi, ya tumhe aisa laga."},
+{if:()=>archetype()==='risky',t:"Tumhare andar ek jaldbaaz si cheez kehti hai: sab bata do, dekho wo kaise react karta hai."},
+],choices:[
+{t:"Sach bata do: ek message aaya tha, tum library {P:gaye the|gayi thi}, aur ek photograph mili hai.",fx:{trust:2,morality:2,emotional:1,danger:2},set:{toldMehra:1},go:'c4'},
+{t:"Jhooth bolo: 'Nahi sir, main toh hostel mein hi tha.' Aur dekho wo kya kehte hain.",fx:{suspicion:2,selfControl:2,confidence:1,morality:-1},set:{liedMehra:1},go:'c4'},
+{t:"Ulta sawaal poochho: 'Sir, Ridgeway Boarding House ki aag ke baare mein aap kya jaante hain?'",fx:{courage:3,curiosity:2,confidence:1,danger:2},set:{askedFire:1},go:'c4'},
+{t:"Chup raho. Sirf muskurao, chai pi lo, aur unki aankhon ki har halki si movement note karo.",fx:{suspicion:2,selfControl:3,curiosity:1},set:{observedMehra:1},go:'c4'},
+]};
+
+/* ---------- CHAPTER 4 ---------- */
+ST.c4={chap:'Chapter 4 — Chabi Aur Nishaan',p:[
+{if:()=>has('toldMehra'),t:"Mehra ne tumhari baat shaanti se suni. Aakhir mein kaha: 'Tum bahut bahadur ho, {NAME}. Par ye photo mujhe do. Main isse sambhal lunga.' Tumhe pata nahi kyun, tumne bas sir hila diya — par photo ke peeche likhi 11:30 wali baat tumne nahi batayi."},
+{if:()=>has('liedMehra'),t:"Mehra ne 'Achha' kaha, aur chai ka ek ghoont liya. Par kuch seconds baad unka haath cup ke kinaare par ruk gaya. 'Mess guard kabhi galat nahi hota, {NAME},' unhone dheere se kaha. Tum jaante ho ki unhone jhooth pakda hai. Aur wo jaante hain ki tum jaante ho."},
+{if:()=>has('askedFire'),t:"Mehra ke chehre ka rang ek pal ke liye nahi badla — par unki ungliyan cup par kas gayi. 'Wo ek haadsa tha,' unhone dheeme se kaha. 'Kuch kahaniyaan dafan rehne mein hi achhi hoti hain.' Wo mehsoos karne wale tareeke se muskuraye, par muskaan aankhon tak nahi pahunchi."},
+{if:()=>has('observedMehra'),t:"Tumne kuch nahi kaha. Mehra ko tumhari chuppi ne thoda beqaraar kiya. Unki ghadi dekhne ki aadat, aur doosre haath ki ungliyon ka halka sa tapping — ye sab tumne note kiya. Jab tum jaane lage, unhone kaha: 'Tumhari chuppi tumhare papa jaisi hai.'"},
+"Office se bahar nikalte hi tumhare kandhe se koi takraya.",
+"Mrs. Lata Bisht. Library ki purani warden — ya kahein, jo ab library band hone ke baad bhi college mein 'record room' sambhalti hain. Unke haath mein chaabiyon ka ek bada gucchha.",
+"'Dekh ke chalo, beta,' unhone kaha, aur bhaari chabi-gucchhe se ek chhoti, zang lagi hui chabi neeche gir gayi. Chabi par ek chhota sa number khuda tha — <b>114</b>.",
+"Tumne use uthaya. Mrs. Bisht ne tumhare haath se chabi aise li jaise wo koi garam angaara ho. Unki ungliyan kaanp rahi thi.",
+"'Ye… kuch nahi hai,' unhone kaha. 'Purani chabi hai. Jao, class ka time ho raha hai.'",
+{if:()=>!has('missedLibrary'),t:"Par tum wo number pehchante ho — 114. Kal raat darwaze par chaak se wahi likha tha."},
+"Tumhara phone buzz karta hai. Ek message {LI} ka.",
+{t:"<m>Mujhe tumse akele mein baat karni hai. Aaj shaam 6 baje, clock tower ke neeche. Bahut zaroori hai. Please.</m>"},
+{if:()=>S.v.trust>=3,t:"Pata nahi kyun, par tumhe lagta hai ki tum {LI} par bharosa kar sakte ho."},
+{if:()=>S.v.suspicion>=3,t:"Par tumhara andar ka koi hissa chillata hai — kal raat ke message ke baad ye doosra message… itna saath-saath kyun?"},
+],clue:'key_114',fx:{curiosity:1},next:'c4_choice'};
+
+ST.c4_choice={chap:'Chapter 4 — Chabi Aur Nishaan',p:[
+"Clock tower ki ghadi shaam ke paanch bajne ka ishaara kar rahi hai. Tumhare paas ek ghanta hai — aur kai sawaal.",
+],choices:[
+{t:"Seedha clock tower jao. {LI} ke bulane par tum bharosa karoge — chahe jo ho.",fx:{trust:2,romance:2,emotional:1,loyalty:1},set:{wentClock:1},go:'p1_end'},
+{t:"Pehle jao, par chhup kar {LI} ko 15 minute pehle se dekho — kya wo {L:akela aata|akeli aati} hai?",fx:{suspicion:2,curiosity:2,risk:1,selfControl:1},set:{spiedLI:1},go:'p1_end'},
+{t:"Mrs. Bisht ke peeche jao. Wo chabi aur 114 ke baare mein kuch jaanti hain.",fx:{courage:2,curiosity:3,risk:2,danger:1},set:{followedBisht:1},go:'p1_end'},
+{t:"{LI} ko sirf ek message bhejo: 'Mujhe pata hai ki tum kuch {L:chhupa rahe|chhupa rahi} ho. Aaj nahi. Pehle sach batao.' Aur khud library record room jao.",fx:{confidence:2,suspicion:1,jealousy:0,courage:1,selfControl:1,romance:-1},set:{refusedLI:1},go:'p1_end'},
+]};
+
+/* ---------- CHAPTER 5 : CLOCK TOWER (4 variants, one per Chapter 4 choice) ---------- */
+const KETTLE=[
+"Baat karte hue {LI} ne baalon ko peeche kiya, aur aasteen kohni tak sarak gayi. Wahi nishaan — kalaayi se kohni tak, chamdi ka chamakta hua, tedha-medha jaal.",
+"'Ye?' {LI} ne tumhari nazar pakad li. 'Bachpan mein chai ki kettle gir gayi thi.' Aasteen wapas neeche kheench li.",
+"Jawab itni jaldi aaya ki tumhe laga wo pehle se taiyar rakha gaya tha — jaise ye sawaal {LI} se pehle bhi kisi ne poochha ho, aur har baar yahi jawab diya gaya ho.",
+{if:()=>hasClue('chai_smell'),t:"Chai ki kettle. Tumhare dimaag mein Mehra sahab ke office ki pital ki kettle ghoom gayi — aur ilaichi ki wo dhundhli, jalti hui smell."},
+];
+const DENIAL=[
+"'Ek baat saaf kar doon,' {LI} ne kaha, tumhare kuch poochne se pehle. 'Wo message maine nahi bheja. Kasam se.'",
+"'Toh kisne bheja?'",
+"'Pata nahi. Par mujhe bhi ek call aaya tha — unknown number se. Sirf saans ki awaaz, aur line kat gayi. Isiliye main library ke paas tha.' {LI} ne ek lambi saans li. 'Mujhe lagta hai kisi ne hum dono ko ek hi jaal mein bulaya hai.'",
+];
+ST.c5a={chap:'Chapter 5 — Clock Tower',p:[
+"Clock tower ke neeche shaam ka sannata ajeeb hota hai. Din ki bheed ja chuki hoti hai, raat abhi aayi nahi — bas kabootaron ki phadphadahat, aur ghadi ki ek lambi, thaki hui tik-tik.",
+"{LI} pehle se wahan {L:khada|khadi} hai, bag ki strap ko dono haathon se bhinche hue. Tumhe aate dekh {LI} ne ek kadam aage badhaya, phir ruk {L:gaya|gayi} — jaise khud ko roka ho.",
+"'Tum {P:aaye|aayi},' {LI} ne kaha. Awaaz mein raahat thi, aur uske neeche kuch aisa jo raahat se bilkul ulta tha.",
+{if:()=>has('toldMehra'),t:"Tum batate ho ki subah Principal sahab ko sab bata diya — message, library, photograph. {LI} ka chehra ek second mein safed pad gaya. 'Tumne… unhe bata diya?' 'Kyun, wo toh sir hain.' 'Haan,' {LI} ne dheere se kaha. 'Wahi toh problem hai.'"},
+{if:()=>!has('toldMehra'),t:"'Ek request hai,' {LI} ne kaha. 'Wo photo kisi ko mat dikhana. Principal sir ko bhi nahi.' Tumne poochha kyun. {LI} ne bas itna kaha: 'Jab tak mujhe pakka na ho jaye.'"},
+...DENIAL,
+...KETTLE,
+"Ghadi ne saat baja diya. Tum dono ke beech jo doori thi, wo pehle se thodi kam hai — par poori tarah mitt nahi gayi."
+],fx:{trust:1,romance:1},setf:{liWarned:1},clue:'li_burn',next:'c6'};
+
+ST.c5b={chap:'Chapter 5 — Clock Tower',p:[
+"Tum paune paanch baje hi pahunch {P:gaye|gayi}, aur chai-tapri ke peeche rakhe purane pani ke tanker ki aad mein baith {P:gaye|gayi}.",
+"5:52 pe {LI} {L:aaya|aayi}. {L:Akela|Akeli}. Tum saans rok ke {P:dekhte rahe|dekhti rahi} — ek minute, do, teen. Koi nahi aaya.",
+"Phir kuch aisa dikha jo tumhe tab tak nahi dikha tha: clock tower ke peeche, gol seedhiyon ke andhere mein, ek camera ke lens ki halki si chamak.",
+"Camera ke peeche ek ladki thi — chhoti-si, ghunghrale baalon wali, gale mein press-card, aur chehre pe wo bechaini jo sirf bahut zyada curious logon ke chehre pe hoti hai. Tum use pehchante ho: Zoya Kapoor, 'Ridge Dispatch' — college ka akhbaar. Wo khud ko investigative journalist kehti hai. Baaki log gossip-queen.",
+"Zoya ne click kiya. {LI} ne palat ke dekha, aur ek second mein seedha uski taraf chal {L:diya|di}. 'Delete karo.' 'Public jagah hai.' 'Delete karo, Zoya.' 'Ya kya?' Zoya ne camera seene se lagaya aur bhaag gayi — kabootaron ka ek jhund uske peeche udd gaya.",
+"{LI} kuch der wahin {L:khada|khadi} raha. Phir bina palte bola: 'Tum bhi bahar aa jao. Tanker ke neeche se tumhari parchhai pichle pandrah minute se dikh rahi hai.'",
+"Tum bahar {P:aaye|aayi}, kaan thande hote hue. {LI} ne tumhari taraf dekha — gusse se zyada thakaan thi us nazar mein. 'Tumhe mujh par shak tha. Theek hai. Shayad mujhe bhi hota.'",
+...DENIAL,
+...KETTLE,
+],fx:{suspicion:1,curiosity:1,trust:1},setf:{liKnewSpied:1,sawZoya:1},clue:'li_burn',next:'c6'};
+
+ST.c5c={chap:'Chapter 5 — Clock Tower',p:[
+"Mrs. Bisht ki chaal dheemi thi, par raaste ko wo aise jaanti thi jaise raaste ne use banaya ho. Wo record room ki taraf nahi gayi. College ke peeche wali dhalaan utri, jahan ek zang lagi tin ki board latki hai: <b>Ridgeway Boarding House — Pravesh Nishedh.</b>",
+"Tum ped ki aad se {P:dekhte rahe|dekhti rahi}.",
+"Boarding house ab bas ek dhaancha hai. Kaali deewarein, tooti hui chhat jiske beech se ek deodar upar uth gaya hai, aur khidkiyan jo ab bhi raakh ki aankhon se bahar taak rahi hain. Gate ke khambhe par Mrs. Bisht ne ek steel ka flask rakha, aur ghutne ke bal baith gayi.",
+"'Aaj bhi neend nahi aayi, bachche,' unhone budbudate hue kaha. 'Maaf karna. Hum bol nahi paaye.'",
+"Tumne ek kadam peeche liya — aur sookhi patti toot gayi.",
+"Mrs. Bisht ek jhatke se mudi. Aankhon mein dar tha, phir pehchaan, phir ek ajeeb si thakaan. Unhone tumhari kalaayi pakad li — unki pakad mazboot thi. 'Yahan mat aana, beta. Tumhare papa ne bhi meri nahi suni thi.'",
+"'Mere papa ne? Kya matlab?' tumne poochha.",
+"'Jao. Aur 114 ke baare mein kisi se kuch mat poochna.' Unhone haath chhod diya, flask uthaya, aur chal padi. Flask garam tha — ilaichi wali chai ki wahi smell, jo Mehra sahab ke office mein thi.",
+"Tum jab clock tower {P:pahunche|pahunchi}, saat baj chuke the. {LI} tower ki seedhiyon par {L:baitha tha|baithi thi}, aur uski nazar mein wo thandak thi jo intezaar ke baad aati hai. 'Main soch {L:raha tha|rahi thi} tum aaoge hi nahi.'",
+"Tum maafi maangte ho — aadhi sachchi, aadhi bachi hui. {LI} ne sir hilaya, par kuch pal tak tumse nazar nahi {L:mila paaya|mila payi}.",
+...DENIAL,
+...KETTLE,
+],fx:{curiosity:2,trust:-1,danger:1},setf:{lateLI:1,sawBoardingHouse:1},clue:'li_burn',next:'c6'};
+
+ST.c5d={chap:'Chapter 5 — Clock Tower',p:[
+"Record room library ki purani annex mein hai — ek lambi, sankri kothri, jisme steel ki almariyan deewar se deewar tak lagi hain. Har shelf par Mrs. Bisht ki saaf, golai wali handwriting mein label.",
+"Tumhe wo cheez milne mein das minute lage jo tum {P:dhoondh rahe the|dhoondh rahi thi}, aur ye bhi nahi pata tha ki dhoondh kya rahe ho. Ek chhote lakdi ke dabbe mein index cards. Sab purane. Ek card par neeche pencil se likha tha:",
+{t:"<m>114 — Pravesh anumati: A. Mehra, L. Bisht. Aur kisi ko nahi.</m>"},
+"Peeche se darwaza dheere se khula.",
+"Darwaze par {LI} {L:khada|khadi} {L:tha|thi}, chehre pe wahi bechaini. 'Tumne mera message padha,' {LI} ne kaha. 'Aur phir bhi yahan aaye.'",
+"'Tumne mujhse sach nahi bola.'",
+"'Aur tum bina bataye record room mein ghus {P:gaye|gayi}, toh hum barabar hain.' Dono ki awaaz fusfusahat se zyada nahi thi, par dono ke andar gussa tha. Tab tak, jab tak dono ne ek saath corridor mein chabiyon ki khanak nahi suni.",
+"Tum dono ne ek hi second mein ek hi faisla kiya: almari ke peeche ek chhoti, aadhi khali cupboard. {LI} ne tumhe andar kheencha, aur darwaza dono ke peeche band kiya.",
+"Andhera. Andhere mein saans. {LI} ka kandha tumhare kandhe se laga hua tha. Bahar Mrs. Bisht ke kadam rukte, chalte, rukte, chalte.",
+{if:()=>archetype()==='shy',t:"Tumhari ungliyan apni hi aasteen mein ulajh gayi hain. Tum nazar kahan rakho — andhere mein koi nazar nahi dikhti — par tum phir bhi nazar chura rahe ho. {LI} ki saans tumhare kaan ke paas hai, aur tum soch rahe ho ki kya {L:wo|wo} bhi tumhara dil sun {L:sakta|sakti} hai."},
+{if:()=>archetype()==='bold',t:"Tumhe sharm nahi aati, par aaj tumhe aisa hi lag raha hai. Tum andhere mein {P:muskuraye|muskurayi}. 'Itni jagah thi, aur tumne yahi chuni?' {LI} ne tumhari kalaayi dabayi. 'Chup.' Par uski awaaz mein bhi muskaan thi."},
+{if:()=>archetype()==='protective',t:"Tumne bina socha ek haath {LI} ke aage kar diya — jaise agar darwaza khule toh pehle tum saamne aaoge. {LI} ne wo haath dekha nahi, par mehsoos zaroor kiya."},
+{if:()=>archetype()==='suspicious',t:"Andhere mein tum sirf ek cheez soch rahe ho: {LI} ko kaise pata tha ki main yahan hoon? Aur ye cupboard — {L:wo|wo} seedha yahin kyun {L:aaya|aayi}, jaise pehle se jaanta ho?"},
+"Mrs. Bisht ne almari se ek moti file nikali, kuch der dekhti rahi, aur phir bagal mein dabake bahar nikal gayi. Darwaza band hone ki awaaz aayi.",
+"Tum dono bahar aaye. {LI} ne phone ki torch jalayi — aur kohni tak uska jala hua nishaan roshni mein chamak utha.",
+...DENIAL,
+...KETTLE,
+],fx:{curiosity:2,risk:1,romance:1,attraction:2},setf:{sawIndexCard:1,hidInCupboard:1},clue:'li_burn',next:'c6'};
+
+/* ---------- CHAPTER 6 : CHABI KA HISAAB ---------- */
+ST.c6={chap:'Chapter 6 — Chabi Ka Hisaab',p:[
+"Mrs. Bisht ka quarter library ke peeche wali line ke aakhri kone mein hai. Darwaze ke saamne ek tulsi ka gamla, aur andar se purane filmi gaanon ki halki awaaz aati hai — radio jo kabhi band nahi hota.",
+"Tum dastak dete ho. Pehli dastak par koi jawab nahi. Doosri par radio ki awaaz kam hoti hai.",
+"'Kaun?'",
+"'Main hoon, {NAME}.'",
+"Ek lambi chup. Phir kunda hataane ki awaaz.",
+"Andar ek chhota kamra hai. Charpai, steel ka ek bartan jisme dal ubal rahi hai, aur kone mein ek aadha-bana chhota sa sweater — bachche ke naap ka. Kisi ke liye nahi — Mrs. Bisht ne bataya — bas aadatan. 'Haath khali rahein toh dimaag kaam pe lag jaata hai,' unhone kaha.",
+{if:()=>has('toldMehra'),t:"'Tumne Mehra sahab ko sab bata diya,' unhone tumhari baat sunte hi kaha. Awaaz mein dar nahi tha — thakaan thi. 'Phir toh der ho chuki hai, beta.'"},
+{if:()=>has('askedFire'),t:"'Suna hai tumne Principal sahab se aag ke baare mein poochha,' unhone kaha. 'Bevakoof ya himmatwale. Dono mein farq kam hota hai.'"},
+"Tum chabi ka zikr karte ho. Wo kuch der sweater ki salai ginti rahi.",
+"'Us raat,' unhone achanak kaha, 'maine tumhe godh mein uthaya tha. Tum {P:rote nahi the|roti nahi thi}. Tum bas… ginti {P:kar rahe the|kar rahi thi}. Ek, do, teen. Ghadi ki tik-tik ke saath.' Unki aankhein door kahin atki thi. 'Chaar bachche the us raat, beta. Akhbaar mein sirf teen likha gaya.'",
+"'Chaar?' tumhara gala sookh gaya. 'Chauthe ka kya hua?'",
+"Mrs. Bisht ne sweater tehkar ke rakh diya. Unke haath kaanp rahe the. 'Bas. Ab jao. Jo raakh ban chuka, use kuredne se haath jalte hain.'",
+"Par chabi unki jeb mein rakhi hui thi — tumne dekha. Aur unhone dekha ki tumne dekha.",
+],clue:'four_children',fx:{curiosity:2},next:'c6_choice'};
+
+ST.c6_choice={chap:'Chapter 6 — Chabi Ka Hisaab',p:[
+"Radio par ek gaana khatam hota hai. Agla shuru hota hai. Mrs. Bisht tumhari taraf nahi dekh rahi — dal ki taraf dekh rahi hain, jo ab tak ubal chuki hai.",
+{if:()=>archetype()==='bold',t:"Tumhara andar ka koi hissa kehta hai: dabav daalo. Ye aurat jaanti hai. Aur tumhare paas waqt kam hai."},
+{if:()=>archetype()==='shy',t:"Tumhe unki aankhon mein darr dikh raha hai, aur tumhara dil kehta hai ki darr ke saamne nazar ka naram hona kabhi kabhi seedhe sawaal se zyada kaam karta hai."},
+],choices:[
+{t:"Naram ho jao. Unke paas baith ke kaho: 'Aap mujhe dar ki wajah se nahi bata rahi, na? Main aapko kuch nahi hone {P:dunga|dungi}.'",fx:{emotional:2,trust:2,loyalty:1,romance:0},set:{bishtAlly:1},go:'c7'},
+{t:"Dabav daalo: 'Agar aap nahi bataengi toh main Inspector ko ya Mehra sahab ko bata {P:dunga|dungi} ki aapke paas 114 ki chabi hai.'",fx:{courage:2,confidence:2,morality:-2,danger:2,impulsive:1},set:{bishtThreat:1,mehraAlert:1},go:'c7'},
+{t:"Aaj raat unke kamre se chabi chura lo. Wo so jaayengi toh pata bhi nahi chalega.",fx:{risk:3,curiosity:2,morality:-1,danger:2,selfControl:-1},set:{stoleKey:1},go:'c7'},
+{t:"Kuch mat karo. Unhe ek hafte ka waqt do, aur {LI} se baat karo — shayad {L:wo kuch jaanta|wo kuch jaanti} hai.",fx:{selfControl:3,trust:1,suspicion:1,curiosity:1},set:{bishtWait:1},go:'c7'},
+]};
+
+/* ---------- CHAPTER 7 : DOOSRA PHONE ---------- */
+ST.c7={chap:'Chapter 7 — Doosra Phone',p:[
+{if:()=>has('bishtAlly'),t:"Raat ko tum Mrs. Bisht ke paas der tak {P:baithe rahe|baithi rahi}. Unhone aur kuch nahi bataya — par chai ke ek cup ke baad unke kandhon ka tanaav thoda dheela pada tha."},
+{if:()=>has('bishtThreat'),t:"Raat ko neend nahi aayi. Mrs. Bisht ka chehra, jab tumne dhamki di thi — usme dar se zyada kuch aur tha, jo tumhe ab chubh raha hai."},
+{if:()=>has('stoleKey'),t:"Chabi tumhari jeb mein hai. Wo bhaari nahi hai — par tumhe lagta hai ki wo bhaari hai. Chori ka bojh sirf weight mein nahi hota."},
+{if:()=>has('bishtWait'),t:"Tumne Mrs. Bisht ko ek hafte ka waqt diya. Par raat ko 2 baje tak {LI} ka last message tumhari screen par tha: 'Soo gaye?'"},
+"Canteen ki chai ki tapri par subah ki bheed hai. Steel ke glass, parathe ki smell, aur kisi ke phone par bajta hua kuch reel ka shor.",
+"{FRIEND} tumhari seat ke saamne wali bench par hai, jaise hamesha — ek haath mein chai, doosre haath se saamne baithe logon ko mimic karta hua. {F:Wo|Wo} tumhe dekhte hi {F:hans diya|hans di}. 'Yaar, tu bhoot jaisa {P:lag raha|lag rahi} hai.'",
+{if:()=>has('tookFriend'),t:"Us raat ki baat nikli — jab tum {FRIEND} ko library tak {P:le gaye the|le gayi thi}. {F:Usne|Usne} abhi tak mazaak mein 'psycho-wali raat' naam rakha hua hai. Par jab bhi tum seedha puchhte ho kuch toh {F:wo|wo} baat badal deta hai."},
+"Table par {FRIEND} ka phone ulta pada hai. Aur uske bagal mein ek aur — chhota, purane model ka, jiski screen par ek lambi daraar hai.",
+"Tum chai ka ghoont lete ho jab doosra phone vibrate karta hai. Screen jal uthti hai ek second ke liye.",
+{t:"<m>Chaiwala: Aaj unhone kya kiya? Sab bata.</m>"},
+"{FRIEND} ne phone ek jhatke mein ulta kar diya. 'Spam hai yaar. Roz aate hain ye.' {F:Wo|Wo} zaroorat se zyada tezi se {F:hansa|hansi}.",
+"Tum kuch {P:kehne wale|kehne wali} {P:the|thi}, jab ek kursi ghasita hua aati hai aur ek chhoti-si ladki bina poochhe bench par baith jaati hai — Zoya Kapoor, gale mein camera, haath mein ek bhura note-pad.",
+"'Subah-subah dukhi mat ho, {NAME},' wo bolti hai. 'Maine tumhe teen din mein teen jagah dekha hai — Principal ka office, library ka peeche wala hissa, aur clock tower. Ek insaan ko ek hafte mein itni jagah nahi jaana chahiye jab tak uske paas koi raaz na ho.'",
+"'Mujhe judge mat karo,' wo jaldi se kehti hai. 'Main sach ko pyaar karti hoon, aur thoda page views ko. Main Ridgeway ki aag pe do saal se kaam kar rahi hoon. Tumhare paas jo hai, wo mujhe dikhao — aur main tumhe wo dikhaungi jo college ne chhupaya.'",
+"{FRIEND} ek dum seedha {F:ho gaya|ho gayi}. 'Zoya, bakwaas band kar. Ye sab kisi ko mushkil mein daal dega.' {F:Uski|Uski} awaaz mein mazaak nahi tha. Pehli baar.",
+],clue:'friend_phone',fx:{curiosity:1,suspicion:1},next:'c7_choice'};
+
+ST.c7_choice={chap:'Chapter 7 — Doosra Phone',p:[
+"Teen log. Teen alag-alag agende. Aur tumhare haath mein ek chai ka glass jo ab thanda ho chuka hai.",
+],choices:[
+{t:"{FRIEND} se seedha poochho: 'Ye doosra phone kiska hai? Chaiwala kaun hai?'",fx:{courage:2,confidence:1,trust:-1,suspicion:1,loyalty:-1},set:{askedPhone:1},go:'c8'},
+{t:"Kuch mat kaho. Baad mein jab {FRIEND} wash-basin tak jaye, chupke se uske doosre phone ki screen ki photo kheench lo.",fx:{suspicion:2,curiosity:2,risk:1,morality:-1,selfControl:1},set:{photoedPhone:1},go:'c8'},
+{t:"Dikhao ki tumne kuch dekha hi nahi. {FRIEND} tumhara dost hai — dosti pehle, shak baad mein.",fx:{trust:3,loyalty:3,emotional:1,suspicion:-2},set:{trustedFriend:1},go:'c8'},
+{t:"{FRIEND} ko chhodo. Zoya ke saath chalo — uski deal sunke dekho, kam se kam wo seedha mol-bhav karti hai.",fx:{curiosity:2,risk:2,confidence:1,loyalty:-2},set:{zoyaAlly:1},go:'c8'},
+]};
+
+/* ---------- CHAPTER 8 : LOCKER 114 ---------- */
+ST.c8={chap:'Chapter 8 — Locker 114',p:[
+{if:()=>has('bishtAlly'),t:"Mrs. Bisht ne agle din chupchaap tumhare haath mein chai ka cup thama diya — aur cup ke neeche ek chabi. 'Raat ko baarah baje ke baad. Thapa so jaata hai,' unhone fusfusakar kaha. 'Aur beta — jo mile, use dhyaan se dekhna. Jaldbaazi mat karna.'"},
+{if:()=>has('bishtThreat'),t:"Mrs. Bisht ne chabi tumhari taraf phenk di — pichhle din ka tumhara dabav ab bhi unki aankhon mein tha. 'Le jao. Par agar kuch hua, mera naam mat lena.' Tumhe pata nahi tha ki ye dhamki ki jeet thi ya haar."},
+{if:()=>has('stoleKey'),t:"Chabi tumhari jeb mein bhaari lag rahi hai. Mrs. Bisht ka kamra raat ko aadha khula tha, aur tumhe pata hai wo ab tak chabi dhoondh chuki hongi."},
+{if:()=>has('bishtWait'),t:"Raat ko {LI} ne tumhe message kiya: 'Library ke neeche jaana hai. Mere paas chabi hai.' Tumne poochha: 'Kahan se?' Jawab nahi aaya. Jab tum library ke peeche pahunche, {LI} pehle se wahan {L:khada tha|khadi thi}, andhere mein, haath mein wahi chabi — jisme 114 khuda tha."},
+"Library ka basement seedhiyon ke aakhir mein hai — ek bhaari lohe ka darwaza jiski kundi par saalon ki dhool jami hai. Andar thandak hai, geele kagaz ki aur zang ki smell, aur ek aisi khamoshi jo andar ghusne walon ko dekh rahi hai.",
+"Almariyon ki line. Har almari par ek number. Tumhari torch ki roshni 108… 110… 112… ruki.",
+"114. Ek chhoti, grey steel ki locker, almari ki sabse neeche wali line mein.",
+"Chabi ghumi. Pehli koshish mein nahi, doosri mein.",
+"Andar ki cheezein bahut kam thi — par har cheez ne tumhe ek jhatka diya:",
+"Ek. Ek purana register ka folded panna. Tumne use kholkar roshni mein padha:",
+{t:"<m>Tareekh: 14 November. Saamaan jama — ek chhota tape-recorder. Jama karne wale: R.S. (nabalig). Gawah: L. Bisht. Samay: 11:30 PM.</m>"},
+"Do. Ek photograph ka fata hua aadha hissa — wahi photo jo tumhare paas hai, par ye uska dusra tukda tha. Isme bachchon ke peeche khade teesre shaks ke kandhe se neeche ka hissa dikh raha tha: ek kurta, ek haath, aur ungli mein ek patli, ghisi hui anguthi jis par ek akshar khuda tha — dhundhla, par maujood.",
+"Teen. Locker ke andar ek chhota-sa rectangular nishaan — jahan dhool nahi thi. Wahan kuch rakha tha, jo ab nahi hai. Ya shayad kabhi tha hi nahi.",
+{if:()=>hasClue('chai_smell'),t:"Aur locker ke andar — halki, par bilkul saaf — ilaichi ki wahi smell."},
+"Tum register ke panne ko {P:ghoorte rahe|ghoorti rahi}. R.S. Nabalig. 11:30 PM. Jis raat aag lagi thi.",
+],clue:'register_entry',fx:{curiosity:2,danger:1},next:'c8_choice'};
+
+ST.c8_choice={chap:'Chapter 8 — Locker 114',p:[
+"Upar kisi ne seedhiyon par pair rakha. Ek pal ke liye basement ki sab awaaz ruk gayi.",
+{if:()=>has('bishtWait'),t:"{LI} ne tumhari kalaayi pakad li, aur fusfusa ke kaha: 'Jaldi karo. Mujhe nahi lagta hum akele hain.'"},
+],choices:[
+{t:"Sab kuch le jao — register, photo ka tukda, sab. Yahan ek second aur rukna theek nahi.",fx:{risk:2,courage:1,impulsive:2,danger:2,morality:-1},set:{tookAll:1},go:'c8_after'},
+{t:"Sirf photo ka tukda lo. Baaki cheezein jaisi thi waisi chhod do — kisi ko pata na chale ki yahan koi aaya tha.",fx:{selfControl:3,suspicion:1,curiosity:1,confidence:1},set:{tookPhotoOnly:1},go:'c8_after'},
+{t:"Phone se sab kuch ki photo lo aur sab wapas rakh do. Saboot chahiye, par chor nahi banna.",fx:{selfControl:2,confidence:2,curiosity:2,morality:1},set:{copied:1},go:'c8_after'},
+{t:"{LI} ke saath milkar dekho — do dimaag, do nazrein. {L:Wo jaanta|Wo jaanti} hai ki kahan dekhna hai.",fx:{trust:2,romance:1,loyalty:1,suspicion:-1,emotional:1},set:{calledLI:1},go:'c8_after'},
+]};
+
+ST.c8_after={chap:'Chapter 8 — Locker 114',p:[
+{if:()=>has('tookAll'),t:"Tumne sab kuch bag mein bhar liya. Locker band karte hue ek ajeeb si awaaz aayi — taala theek se nahi laga. Upar torch ki ek lambi lakeer seedhiyon par ghoom gayi. Guard Thapa. Tum almari ke peeche {P:dub gaye|dub gayi}, aur Thapa ki chappal dheere dheere guzar gayi. Par locker ka darwaza ab bhi thoda khula tha."},
+{if:()=>has('tookPhotoOnly'),t:"Tumne photo ka tukda jeb mein daala aur baaki sab jaisa tha waisa kar diya — register ka panna wahi fold, wahi kona. Taala band kiya. Torch ki roshni upar guzar gayi, aur tum saans rokar wahin {P:baithe rahe|baithi rahi} jab tak kadmo ki awaaz door nahi chali gayi."},
+{if:()=>has('copied'),t:"Tumne phone ki torch aur camera dono ek saath chalaye. Register ka panna, photo ka tukda, locker ke andar ka khaali nishaan — sab. Kuch click aise the jinki awaaz tumne apne dil ki dhadkan mein dabane ki koshish ki. Phir sab kuch wapas, bilkul usi tarah."},
+{if:()=>has('calledLI')||has('bishtWait'),t:"{LI} ne locker ke andar jhuk kar dekha — aur ek second ke liye jaise kuch pehchana. 'Ye andar se utna gehra nahi lagta,' {LI} ne dheere se kaha. Phir turant bola: 'Matlab… bahar se zyada gehra lagta hai.' Tum dono ne ek doosre ko dekha. Tumne kuch nahi kaha, par ye baat tumhare dimaag mein dab gayi: {LI} ne wo kyun dekha?"},
+{if:()=>has('calledLI')||has('bishtWait'),t:"Thapa ke guzarne tak, almari ke peeche andhere mein, {LI} tumhare bahut kareeb {L:tha|thi}. Do saansein, ek hi rhythm mein. Jab kadmo ki awaaz door chali gayi, dono ne ek saath saans chhodi — aur dar ke baad aane wali halki si hansi nikal gayi."},
+{if:()=>S.v.curiosity>=7&&!(has('calledLI')||has('bishtWait')),t:"Jaane se pehle tumne locker ko ek baar aur dekha. Bahar se uski gehraai aur andar ki gehraai mein kuch mel nahi khata — andar kuch aisa tha, jaise ek peeche ki deewar jo asli nahi thi. Tumne use chhua. Tight. Par kisi doosri chabi ke bina nahi khulegi."},
+"Tum basement se bahar {P:aaye|aayi} jab raat ke dhai baje the. Hawa mein deodar ki thandi smell thi, aur dimaag mein ek sawaal jo ab ek naam ban chuka tha: <b>R.S.</b>",
+],clue:'torn_half',fx:{curiosity:1},next:'c9'};
+
+/* ---------- CHAPTER 9 : AKHBAAR KI KATRAN ---------- */
+ST.c9={chap:'Chapter 9 — Akhbaar Ki Katran',p:[
+"Ridge Dispatch ka office college ke purane clock-room mein hai — ek chhoti kothri jisme akhbaaron ke gatthe, ek chipka hua whiteboard aur ek aisi dhool jo Zoya ke liye 'archive' kehlati hai.",
+{if:()=>has('zoyaAlly'),t:"Zoya ne tumhe dekhte hi ek chair kheench di aur chai ka glass thama diya. 'Dekho, mujhe bhi andar ghusne mein darr lagta hai, par tumse deal karna asaan hai. Tum jhooth nahi bolte.'"},
+{if:()=>!has('zoyaAlly'),t:"Zoya ne tumhe dekhte hi ek shart rakh di: 'Pehle apni photo dikhao, phir meri file.' Tumne kuch der sochkar wo photo uski taraf badhayi."},
+"Wo sab shor band karke ek hi cheez dekh rahi thi: photo ke peeche likha pencil ka <i>11:30</i>. 'Ye pehle mujhe kisi ne kabhi nahi dikhaya,' wo boli.",
+"Phir usne ek moti, purani file nikali. Pehle panne par akhbaar ki katran, peeli padi hui:",
+{t:"<m>RIDGEWAY BOARDING HOUSE MEIN AAG — EK BACHCHE KI MAUT, TEEN BACHE.</m>"},
+"Neeche chaar school-ID photos. Teen par 'surakshit' ka chhapa tha. Ek par nahi.",
+"Tumhari apni photo — nau saal ka {NAME}, bikhre baal, ek tedhi muskaan.",
+"Doosri aur teesri — Neel Kashyap aur Tia Rao, jinko tum naam se bhi nahi {P:jaante the|jaanti thi}.",
+"Aur chauthi photo par ek lal rang ka cross. Neeche naam: <b>{L:Rudra|Roohi} Sen, 9 saal.</b>",
+"Zoya ne tumhari photograph us katran ke bagal mein rakh di. Fark sirf ek second mein dikha: tumhare haath ko thaamne wala bachcha — wahi aankhein, wahi tedha muskurana, wahi chehra.",
+"'Tumhari photograph mein jo doosra bachcha hai,' Zoya ne dheere se kaha, 'wo wahi hai jise akhbaar ne mara hua bataya.'",
+"Kamre mein ghadi ki tik-tik thi, aur tumhe kuch aur sunai nahi diya.",
+{if:()=>true,t:"Zoya ne tumhari taraf ek ajeeb nazar daali. 'Ek aur baat. Is bachche ki aankhein dekho — kisi jaanne wale jaisi nahi lagti?' Phir wo hans padi, bahut jaldi: 'Chhodo. Mazaak tha. Sab bachchon ki aankhein ek jaisi hoti hain.'"},
+"Aur ek baat tumhare dimaag mein ghoomi, jise tumne apne aap se bhi nahi kaha: R.S. — Rudra Sen, ya Roohi Sen. Jis bachche ne locker 114 mein wo recorder jama kiya tha.",
+],clue:'sen_clipping',fx:{curiosity:2,danger:1,suspicion:1},setf:{twist1:1},next:'c9_choice'};
+
+ST.c9_choice={chap:'Chapter 9 — Akhbaar Ki Katran',p:[
+"Tumhare dimaag mein do cheezein ek saath ghoom rahi hain: {LI} ke haath ka nishaan, aur ek bachche ka cross lagaya hua chehra.",
+{if:()=>archetype()==='suspicious',t:"Tumhe lagta hai tum pehle se {P:jaante the|jaanti thi}. Bas man mana kar raha tha."},
+],choices:[
+{t:"{LI} se seedha poochho — aaj hi, abhi. Jo bhi sach ho, tum jaanna chahte ho.",fx:{courage:3,trust:1,confidence:2,emotional:1,suspicion:-1},set:{askedLIdirect:1},go:'c10'},
+{t:"{LI} ko kuch mat batao. Pehle {L:uske|uske} baare mein khud pata lagao.",fx:{suspicion:3,selfControl:2,curiosity:2,trust:-2,romance:-1},set:{secretInvestLI:1},go:'c10'},
+{t:"Zoya ke saath deal karo: wo story publish nahi karegi, aur tum use jo bhi milega, usme se aadha doge.",fx:{confidence:2,risk:2,morality:-1,curiosity:1,loyalty:-1},set:{zoyaDeal:1},go:'c10'},
+{t:"Sen parivaar ka pata lagao. Zoya ke paas unki rishtedaar ka address hai — Solan mein ek bua.",fx:{curiosity:3,courage:1,selfControl:1,risk:1,danger:1},set:{senFamily:1},go:'c10'},
+]};
+
+/* ---------- CHAPTER 10 : BARISH ---------- */
+ST.c10={chap:'Chapter 10 — Barish',p:[
+"Sham ko Kasauli ka mausam palat gaya. Pahle thandi hawa, phir door se gunjta hua baadal, aur phir wo barish jo sirf pahaadon mein aati hai — ek saath aur bina izaazat ke.",
+"Hostel ki light 8:40 par chali gayi. Corridor mein mombattiyon ki parchhaiyan aur kisi ke kamre se aati hui kisi ki ghabrai hui hansi.",
+"Tumhara phone buzz kiya.",
+{t:"<m>{LI}: Chhat pe aa sakte ho? Please. Sirf paanch minute.</m>"},
+"Chhat par tin ka ek chhota shed hai, jahan hostel ke log dhoop mein kapde sukhate hain. Aaj raat us shed ke neeche sirf ek bench, ek flask aur {LI} ka intezaar. Barish ki boondein tin par aise bajti thi jaise koi door se taali baja raha ho.",
+"{LI} ne flask tumhari taraf badhaya. 'Chai. Mess wale uncle se maangi.' Par jab flask se bhaap uthi, {LI} ke haath ek pal ke liye peeche hat gaye — jaise garmi se nahi, kisi yaad se.",
+{if:()=>has('askedLIdirect'),t:"Tumne subah seedha poochha tha, aur {LI} ne ek ghante tak koi jawab nahi diya tha. Ab {L:wo|wo} khud {L:shuru karta|shuru karti} hai: 'Haan. Mujhe Sen parivaar ke baare mein kuch pata hai. Par abhi sab nahi bata {L:sakta|sakti}.' {LI} 'abhi' shabd par {L:ruka|ruki}. 'Bas itna kehna hai ki wo bachcha… meri zindagi ka ek bahut zaroori hissa tha.'"},
+{if:()=>has('secretInvestLI'),t:"Tumne subah se {LI} ko door se dekha tha, aur ab {L:wo jaanta|wo jaanti} hai. 'Tum mujhe aise dekh rahe ho jaise main ek sawaal hoon,' {LI} ne halki si muskaan ke saath kaha. 'Main sawaal nahi hoon. Bas… thoda zyada {L:ulajha hua|ulajhi hui}.'"},
+{if:()=>has('zoyaDeal'),t:"'Zoya ke saath tumhari kya baat chal rahi hai?' {LI} ne lahza badalkar poochha. Awaaz thandi thi, par aankhon mein kuch aur — shayad jalan. 'Wo mujhe pasand nahi karti, tumhe pata hai.'"},
+{if:()=>has('senFamily'),t:"Tumhari jeb mein Solan ki us bua ka address hai. Kuch cheezein jeb mein hi achhi rehti hain."},
+"Hawa mein thandak thi. {LI} thoda {L:kaanp raha tha|kaanp rahi thi}.",
+{if:()=>archetype()==='protective',t:"Tumne bina poochhe apni jacket {LI} ke kandhon par daal di. 'Mujhe thand nahi lagti,' tumne jhooth bola. {LI} ne kuch nahi kaha, par bahut der tak jacket ki collar ko pakadkar {L:baitha raha|baithi rahi}. 'Mujhe kisi ne kabhi aise bachaya nahi,' {LI} ne dheere se kaha."},
+{if:()=>archetype()==='bold',t:"'Tum itna door kyun {L:baithe|baithi} ho?' tumne muskuraate hue poochha. {LI} ne bench ke beech ki jagah dekhi — phir tumhari taraf. 'Tumhe kaise pata main door {L:baitha|baithi} hoon?' 'Kyunki main gin {P:sakta|sakti} hoon.' Dono hans pade. Jaise tum dono pehle hi se jaante the ki ye khel kahan jaayega."},
+{if:()=>archetype()==='shy',t:"Tum bench ke ek kone par the, aur {LI} doosre kone par. Beech mein ek flask, do glass aur kuch aise jumle jo kisi ne nahi kahe. {LI} ne ek baar tumhari taraf dekha, aur tumne nazar chura li. Dono ne ek saath dekha ki kaise dono ne ek saath nazar churayi thi."},
+{if:()=>archetype()==='suspicious',t:"Tum shed ke exit ki taraf dekhte ho. Phir seedhiyon ki taraf. {LI} ne ye dekha. 'Tum mujhse kuch poochna chahte ho,' {LI} ne kaha. 'Poochho. Main jhooth nahi {L:bolunga|bolungi} — ya… kam se kam, bina soche nahi.'"},
+{if:()=>archetype()==='risky',t:"{LI} parapet ke kinaare par {L:baitha|baithi} hai, pair chhat se bahar latkaye, neeche andhera aur barish ki dhar. 'Aao,' {LI} {L:kehta|kehti} hai. 'Aaj raat darr ka ek hi ilaaj hai — usse zyada darr.' Tum bench par hi {P:rahe|rahi}, par dil kisi aur taraf bhaag raha tha."},
+"'Mujhe kuch yaad hai,' {LI} ne achanak kaha. 'Aag nahi. Bas ek ghanta. Ek ghadi jo hamesha 11:30 par ruki hui thi. Aur kisi ne mera haath thaama tha.' {LI} ne apni hatheli dekhi. 'Mujhe nahi pata ki wo yaad hai ya ek sapna jo itni baar aaya ki yaad ban gaya.'",
+"11:30. Tumhare haath ke ghere mein thanda ek glass tha, aur andar ka sab kuch ek saath garam ho gaya.",
+"{LI} ab bahut kareeb {L:tha|thi}. Barish ki boondon ke beech, bench par aadhi roshni mein, tum dono ke beech ek haath ki doori. Aadhi saans ki doori.",
+],clue:'clock_1130_memory',fx:{romance:2,emotional:1,attraction:1},next:'c10_choice'};
+
+ST.c10_choice={chap:'Chapter 10 — Barish',p:[
+"Tin par boondein bajti rahi. Kuch kehna tha. Kuch nahi kehna tha. Sab kuch abhi ek hi pal mein tha.",
+],choices:[
+{t:"Pehla kadam lo — bahut kareeb aa jao, aur pal ko apna banao.",fx:{romance:3,confidence:2,impulsive:2,attraction:2},set:{firstKiss:1},go:'c11'},
+{t:"Peeche hat jao. Kaho: 'Jab tak sach nahi pata, main kuch nahi kar {P:sakta|sakti}.'",fx:{selfControl:3,suspicion:1,romance:-1,morality:1},set:{pulledBack:1},go:'c11'},
+{t:"Kuch kehne ki jagah {LI} ka haath thaam lo, aur bas wahin baithe raho.",fx:{emotional:3,romance:2,trust:1,loyalty:1},set:{heldHand:1},go:'c11'},
+{t:"Mazaak mein taal do: 'Tum itne kareeb kyun {L:baithe|baithi} ho? Jealous ho kya?'",fx:{confidence:1,jealousy:1,attraction:1,impulsive:1,romance:1},set:{teased:1},go:'c11'},
+]};
+
+/* ---------- CHAPTER 11 : INSPECTOR RAWAT ---------- */
+ST.c11={chap:'Chapter 11 — Inspector Rawat',p:[
+{if:()=>has('firstKiss'),t:"Raat ki barish tumhari jacket mein ab bhi thi, aur honthon par ek aisa swaad jisse tum subah tak bach nahi {P:paaye|paayi}. {LI} ka message subah chhe baje aaya tha: 'Kuch bhi ho jaye, aaj raat ko pachhtaana mat.'"},
+{if:()=>has('pulledBack'),t:"Raat ki barish ke baad {LI} bina kuch kahe {L:chala gaya|chali gayi}. Tum {P:jaante the|jaanti thi} ki tumne sahi kiya — aur ye bhi ki sahi hona aur theek lagna do alag cheezein hain. Subah ek chhoti si chit mili: 'Main intezaar kar lunga.'"},
+{if:()=>has('heldHand'),t:"Barish ke baad ke ghante tum dono ne kuch nahi kaha. Par subah {LI} ka message aaya: 'Kal raat mujhe sabse zyada safe lag raha tha.' Tum use teen baar padh chuke ho."},
+{if:()=>has('teased'),t:"Tumhare mazaak ke baad {LI} {L:hansa tha|hansi thi} — par us hansi mein ek halki si darar thi. Subah ek message aaya: 'Jealous toh main sach mein hoon. Isiliye mazaak nahi karna chahiye tha.'"},
+"Kasauli chowki ek purani, peeli painti hui building hai jahan har cheez thoda tedhi lagti hai — table, tubelight, aur wahan ke log.",
+"Inspector Devika Rawat un logon mein se thi jo kamre mein ghuste hi use apna bana lete hain. Chhoti kad, bhoori aankhein, aur wo adat jisme wo kisi ki taraf dekhte hue bhi poori file ki taraf dekh rahi hoti hain.",
+"'Baitho. Chai nahi hai. Sawaal hain.'",
+"Tum {P:baith gaye|baith gayi}.",
+{if:()=>has('wentAlone')||has('scouted')||has('tookFriend'),t:"Usne ek CCTV frame table par rakha. Library ke peeche wali gali. 11:28 PM. Ek parchhai, jo tum ho. 'Ye tum ho,' usne kaha — sawaal nahi, tathya."},
+{if:()=>has('missedLibrary'),t:"Usne ek CCTV frame table par rakha. Library ke peeche wali gali. 11:31 PM. Do parchhaiyan. 'Ek ko main nahi pehchanti. Doosre ke baare mein sirf itna keh sakti hoon ki wo hamari library ki sabse purani warden hain.' Tum chup {P:rahe|rahi}. Mrs. Bisht ki parchhai itni saaf kaise ho sakti thi?"},
+{if:()=>has('mehraAlert')||has('tookAll'),t:"'Kal Principal sahab ne complaint ki,' Rawat ne kaha. 'Library ke basement mein se purane records gaayab hain. Locker ka taala tuta mila.' Wo ruki. 'Tumhare baare mein kuch nahi likha. Par tumhara naam unhone do baar liya.'"},
+{if:()=>!(has('mehraAlert')||has('tookAll')),t:"'Library ke basement mein kisi ke aane ki shikaayat aayi thi,' Rawat ne kaha. 'Koi saboot nahi — taala jaisa tha waisa. Par guard ne ek parchhai dekhi thi.' Wo ruki. 'Aur main ek-do coincidence maan leti hoon. Teen nahi.'"},
+"Wo apni kursi par peeche jhuki. 'Ek baat bataun? Us raat — nau saal pehle — mera chhota bhai fire brigade mein tha. Wo nahi laut paaya. Official report mein likha hai: ek haadsa. Mujhe us report ka ek bhi shabd sach nahi lagta.' Pehli baar uski awaaz mein ek darar thi.",
+"'Mujhe sach chahiye, {NAME}. Aadha sach mujhe aadhe jhooth se zyada pareshaan karta hai.'",
+],clue:'rawat_brother',fx:{danger:1},next:'c11_choice'};
+
+ST.c11_choice={chap:'Chapter 11 — Inspector Rawat',p:[
+"Rawat tumhe dekh rahi hai. Aur kamre ki ghadi jo hamesha 11:30 se thodi aage-peeche chalti hai.",
+{if:()=>archetype()==='suspicious',t:"Tumhe pata hai ki Rawat ne tumhe kuch nahi diya hai. Sirf apni kamzori dikhayi hai. Aur kai baar kamzori hi sabse tez jaal hoti hai."},
+],choices:[
+{t:"Sab bata do. Photo, locker, register, R.S. — sab. Ye aurat bhai ko khone ka dard jaanti hai.",fx:{trust:3,morality:2,emotional:1,loyalty:1,danger:2},set:{rawatAlly:1},go:'c12'},
+{t:"Aadha sach bata do — sirf wo jo Rawat pehle se jaanti hai. Baaki apne paas rakho.",fx:{selfControl:2,confidence:2,suspicion:2,morality:0},set:{rawatHalf:1},go:'c12'},
+{t:"Kuch bhi batane se pehle kaho: 'Mujhe pehle ek wakeel chahiye.' Police par bharosa karna abhi jaldbaazi hogi.",fx:{suspicion:3,selfControl:2,confidence:1,trust:-2},set:{rawatDistrust:1},go:'c12'},
+{t:"Mehra ka naam do: 'Mujhe lagta hai Principal sahab is sab ke peeche hain.'",fx:{courage:3,risk:2,impulsive:2,danger:3,confidence:1},set:{accusedMehra:1},go:'c12'},
+]};
+
+/* ---------- CHAPTER 12 : BARSI ---------- */
+ST.c12={chap:'Chapter 12 — Barsi',p:[
+{if:()=>has('rawatAlly'),t:"Chowki se nikalte hue Rawat ne tumhare haath mein ek card thama diya. 'Koi bhi time. Koi bhi baat.' Tum card ko jeb mein daalte hue pehli baar dar se zyada halka mehsoos kar rahe the."},
+{if:()=>has('rawatHalf'),t:"Chowki se nikalte hue tumhe lag raha tha ki tum ek khel khel {P:rahe the|rahi thi}, jisme dono taraf se aadha sach chal raha tha. Aur kisi ko pata nahi tha ki asli khel kiska hai."},
+{if:()=>has('rawatDistrust'),t:"Chowki se nikalte hue Rawat ne bas ek line kahi: 'Wakeel kaafi nahi hota, {NAME}. Par theek hai. Jab zaroorat ho, main yahin hoon.' Tumhe pata nahi tha ki ye dhamki thi ya darwaza."},
+{if:()=>has('accusedMehra'),t:"Rawat ke chehre par kuch nahi badla. Par jab tum jaane lage, usne dheere se kaha: 'Tumne ye naam jis tarah liya… agar tum galat hue, toh tumhe pata hai tum kitna bada daanv khel rahe ho?'"},
+"Mehra sahab ka message dopahar mein aaya:",
+{t:"<m>Aaj shaam 7 baje meri lodge par aana. Tumhare papa ki barsi hai. Akele mat rehna aaj.</m>"},
+"Principal's Lodge deodar ke ped ke neeche ek purani, lakdi ki imaarat hai. Pital ke jhumar, ek sheeshe ki almari jisme kitaabein itni saleeqe se lagi hain ki kisi ne unhe kabhi nahi padha hoga, aur ek taraf ek photo-frame — tumhare papa aur Mehra sahab, kandhe par haath, kisi college ke function mein.",
+"Mehra sahab ne darwaza khud khola. Unhone halka kurta pehna hua tha, aur bahut thaka hua dikh rahe the — ya shayad bahut achhe se thaka hua dikhna jaante the.",
+"'Aao, {NAME}. Aaj main tumhare liye hi chai banata hoon.'",
+"Wahi pital ki kettle. Wahi ilaichi. Unhone chai daali, aur ek patli sone ki anguthi unki ungli mein chamak gayi — ghisi hui, ek akshar jo ab dhundhla pad chuka tha.",
+"'Tumhare papa ke paas bhi aisi hi anguthi thi,' Mehra ne tumhari nazar pakad li. 'Ridgeway Trust ke hum dono trustee the. Ek saath li thi. Ek saath nibhayi.' Unki awaaz bahut naram thi. 'Chai sirf peene ki cheez nahi hoti, beta. Yaad dilane ki bhi hoti hai.'",
+"Tum kettle ki taraf {P:dekhte rahe|dekhti rahi}. Pital ki wahi daagdaar sataha. Tumhe kisi ne bahut door se pukara.",
+"— Ek lambi gali. Dhuan. Zameen par ek pital ki kettle ghoom rahi hai, ghoom rahi hai, aur kisi bachche ki cheekh. Ek haath — kisi ka bada haath — kisi chhote haath ko pakad ke kheench raha hai.",
+"Tum ek second mein wapas {P:the|thi}. Mehra sahab ne chai ka cup tumhare saamne rakh diya tha.",
+"Aur phir tumhara phone vibrate hua. Unknown number. Wahi.",
+{t:"<m>Chai mat peena.</m>"},
+{if:()=>has('mehraAlert'),t:"Tumhe yaad aaya ki Bisht ke saamne tumne dhamki di thi. Kya ye wahi hai jo ye message bhej rahi hai? Ya koi aur?"},
+],clue:'ring_and_flash',fx:{curiosity:1,danger:2},next:'c12_choice'};
+
+ST.c12_choice={chap:'Chapter 12 — Barsi',p:[
+"Cup se bhaap uth rahi hai. Mehra sahab tumhe dekh rahe hain — itne pyaar se ki tum soch rahe ho ki kya tum sach mein unhe galat samajh rahe ho.",
+{if:()=>archetype()==='bold',t:"Tumhara andar ka koi hissa kehta hai: seedha poochh lo. Is kamre mein ek hi insaan sach jaanta hai."},
+{if:()=>archetype()==='risky',t:"Chai garam hai. Raat lambi hai. Aur tumhare andar wo awaaz jo kehti hai ki khatra sabse bada sach hota hai."},
+],choices:[
+{t:"Chai piyo. Agar Mehra jhooth bol rahe hain toh unhe tum par se nazar hatane do. Chai se darr kar nahi jee sakte.",fx:{risk:3,courage:2,impulsive:2,danger:3,trust:1},set:{drankChai:1},go:'c12_drank'},
+{t:"Phone call ke bahane cup chupke se plant ke gamle mein ulat do.",fx:{suspicion:2,confidence:2,selfControl:1,curiosity:1,morality:-1},set:{swappedChai:1},go:'c12_swap'},
+{t:"Kettle ki taraf ishara karke seedha poochho: 'Sir, us raat — us aag ki raat — kettle yahan thi na? Ye kisne uthayi thi?'",fx:{courage:3,confidence:2,impulsive:1,danger:3,curiosity:2},set:{askedKettle:1},go:'c12_ask'},
+{t:"Bahaana banao — 'mujhe washroom jaana hai' — aur Mehra ki study ka darwaza dhoondho. Jo bhi chhupa hai, wahin hoga.",fx:{curiosity:3,risk:2,selfControl:1,suspicion:1,danger:2},set:{sneakedStudy:1},go:'c12_sneak'},
+]};
+
+ST.c12_drank={chap:'Chapter 12 — Barsi',p:[
+"Pehla ghoont. Meetha, garam, ilaichi ki wohi purani smell. Dusra ghoont. Kamre ki roshni thodi dheemi hui — ya tumhari aankhein.",
+"Mehra sahab ki muskaan lambi hoti ja rahi thi. 'Achha lag raha hai na?' unhone poochha. 'Mujhe pata tha tum piyoge. Tumhare papa bhi nahi dare the.'",
+"Tumne cup neeche rakha. Haath thoda kaanpa. Aur us pal tumhare dimaag mein ek ginti shuru ho gayi — ek, do, teen — bilkul Mrs. Bisht ki kahani ke bachche ki tarah.",
+"'Ab batao,' Mehra ne kaha, ab bahut dheere. 'Wo photograph tumhare paas kaise aayi, {NAME}?'",
+{if:()=>has('tookAll')||has('tookPhotoOnly'),t:"'Aur jo tumne locker 114 se liya — wo kahan hai?'"},
+{if:()=>!(has('tookAll')||has('tookPhotoOnly')),t:"'Aur locker 114 mein tumne kya dekha?'"},
+],fx:{danger:2},next:'p2_end'};
+
+ST.c12_swap={chap:'Chapter 12 — Barsi',p:[
+"Tumne phone ki taraf ishara kiya — 'ek minute sir' — aur Mehra ke palatte hi cup ka sab kuch plant ke gamle mein ulat diya. Mitti ne ek second mein chai sokh li. Tumhare dil ki dhadkan ne aur zyada shor kiya.",
+"Mehra palte. Unki nazar khaali cup par gayi. Muskaan nahi badli. 'Itni jaldi?' unhone poochha.",
+"'Haan sir. Bahut achhi chai hai.'",
+"Mehra ne ek lambi, shaant saans li. 'Chai kabhi galat nahi hoti, {NAME}. Sirf chai pilane wala galat ho sakta hai.' Unhone cup uthaya, aur gamle ki taraf dekha. Gamle ke kinaare ek patti kuch ajeeb tareeke se murjha rahi thi.",
+],fx:{suspicion:1,danger:1},next:'p2_end'};
+
+ST.c12_ask={chap:'Chapter 12 — Barsi',p:[
+"Kamre mein kuch pal tak sirf ghadi ki tik-tik rahi.",
+"Mehra sahab ke haath chai daalte hue ruk gaye. 'Kettle,' unhone dohraya. Unki awaaz mein ajeeb sa sukoon tha — jaise barson se ye sawaal sunne ka intezaar kar rahe the.",
+"'Tumhare papa ne mujhse kaha tha,' unhone dheere se kaha, 'ki ek din tum ye sawaal poochhoge. Aur maine unse waada kiya tha ki main jhooth nahi bolunga.'",
+"Tum saans rokkar {P:baithe rahe|baithi rahi}.",
+"'Kal aana,' Mehra ne cup neeche rakha. 'Subah. Akele. Sab bataunga. Aaj raat nahi.' Unki aankhon mein pehli baar kuch aisa tha jo tum samajh nahi {P:paaye|paayi} — pyaar nahi, dar nahi, kuch aur. Jaise koi bahut purana bojh utarna chahta ho aur utarte hue use bhi tod dena chahta ho.",
+],fx:{courage:1,danger:2},setf:{mehraPromise:1},next:'p2_end'};
+
+ST.c12_sneak={chap:'Chapter 12 — Barsi',p:[
+"Washroom ka raasta ek chhote gallery se guzarta hai. Aur gallery ke aakhir mein ek darwaza — study — jo aadha khula tha.",
+"Tum andar nahi {P:gaye|gayi}. Bas aadhe paanv se jhaank liya.",
+"Ek puri deewar par ek cork-board. Aur board par chaar photos. Chaar bachche — wahi ID photos jo tumne Zoya ke archive mein dekhe the. Tumhari, Neel ki, Tia ki aur ek aur par lal rang ka cross.",
+"Aur cross wali photo ke bagal mein ek nayi, taaza chhaapi hui photograph, jisme tum ek pal ke liye kuch bhi nahi soch {P:paaye|paayi}. {LI} ka chehra. Uske neeche ek lal pen se likha ek sawaal: <b>?</b>",
+"Peeche se ek bahut shaant awaaz aayi. 'Ghalat darwaza, beta.' Mehra sahab gallery ke dusre sire par khade the — haath mein ek chai ka cup, muskaan ke saath. 'Washroom wahan hai.'",
+],fx:{curiosity:2,danger:2},setf:{sawCorkBoard:1},clue:'cork_board',next:'p2_end'};
+
+/* ---------- PART 1 END : CHAPTERS 1–4 ---------- */
+ST.p1_end={chap:'Part 1 — Samapt',p:[
+"Chapter 4 yahin tak tha — par tumhari kahani nahi. Tumhare chaaron faislon ne tumhe alag raaste par khada kiya hai, aur ab unhi raaston ka asar Part 2 mein saamne aayega.",
+{if:()=>has('wentClock'),t:"Tumne {LI} par bharosa karne ka faisla kiya hai. Ab dekhna hai ki wo bharosa tumhe sach tak le jaata hai… ya kisi jaal tak."},
+{if:()=>has('spiedLI'),t:"Tumne {LI} ko door se dekhne ka faisla kiya hai. Tumhara shak ab sirf shak nahi raha — tumne ek parchhai bhi dekhi hai."},
+{if:()=>has('followedBisht'),t:"Tumne Mrs. Bisht ka peecha kiya hai. Ridgeway Boarding House ka naam ab sirf ek purani kahani nahi raha."},
+{if:()=>has('refusedLI'),t:"Tumne {LI} ko rok kar record room ka raasta chuna hai. Sach ki talaash mein tumne rishton se pehle saboot ko rakha hai."},
+"Part 2 mein Chapters 5–12 tumhare isi faisle se aage badhenge. Kuch purane clues ka matlab badlega, kuch naye raaz saamne aayenge, aur tumhari choices ka asar tumhare rishton par bhi padega.",
+],next:'part2_start'};
+
+/* ---------- PART 2 ENTRY : CHAPTERS 5–12 ---------- */
+ST.part2_start={chap:'Part 2 — Chapters 5–12',p:[
+"Part 2 shuru hota hai.",
+"Part 1 mein tumne jo chuna, uska nateeja ab turant saamne aane wala hai. Ab sawaal sirf ye nahi hai ki sach kya hai — sawaal ye bhi hai ki tum kis par bharosa karoge.",
+"Raat 11:30 ka raaz ab Ridgeway Boarding House, locker 114 aur nau saal purani aag se jud chuka hai.",
+],next:'__PART2_ROUTE__'};
+
+/* ---------- PART 2 END : CHAPTERS 5–12 ---------- */
+ST.p2_end={chap:'Part 2 — Samapt',p:[
+"Principal's Lodge se bahar nikalte waqt tum ek pal ke liye peeche mudkar dekhte ho. Deodar ke ped hawa mein wahi purani kahani kehte hain, par ab tumhe lagta hai ki tum us kahani ke ek hisse ko samajhne lage ho.",
+"Ek <b>mara hua maana gaya bachcha</b>. Locker 114 ka <b>tape-recorder</b>. Do trusteeon ki <b>ek-jaisi anguthiyan</b>. Aur wo <b>kettle</b> — har clue ab ek hi sawaal ki taraf ishara kar raha hai: nau saal pehle asal mein hua kya tha?",
+{if:()=>archetype()==='bold',t:"Is kahani mein ab tak tumne apni awaaz buland rakhi hai. Logon ne tumhe note kiya hai — aur kuch ne tumse darna shuru kar diya hai."},
+{if:()=>archetype()==='shy',t:"Is kahani mein ab tak tumne apne dil ko zyada khola hai, aur kai baar kam bola hai. Aur kuch logon ne tumhari chuppi ko apni baat samajh liya hai."},
+{if:()=>archetype()==='protective',t:"Tumhari wafadari ab tak sabse bhaari rahi hai. Jo tumhare saath khade hain, unhe tum par bharosa karna aa raha hai. Jo nahi, wo tumhari wafadari ko apni kamzori banane ki soch rahe hain."},
+{if:()=>archetype()==='suspicious',t:"Tumne ab tak har cheez ko ek sawaal ke saath dekha hai. Isne tumhe bachaya bhi hai, aur kuch dilon ko dukha bhi hai."},
+{if:()=>archetype()==='risky',t:"Tumne ab tak khatre ko chuna hai — baar baar. Kuch ne tumhe himmat samjha hai, kuch ne laaparwahi."},
+{if:()=>archetype()==='neutral',t:"Tumne abhi tak apne aap ko kisi ek taraf nahi jhukne diya. Agle chapters mein ye badal sakta hai."},
+"<b>Part 2 yahan samapt hota hai — Chapters 5–12.</b>",
+"Lekin kahani khatam nahi hui. Chapters 13 se aage, Part 3 mein Bisht ka poora sach, dost ke raaz, aur {LI} ke connection ki asli wajah saamne aayegi.",
+"Aur shayad… 11:30 ka matlab bhi.",
+],ending:true};
+/* ============ RENDER ============ */
+const app=document.getElementById('app');
+function show(html){app.innerHTML='<div class="fade">'+html+'</div>';window.scrollTo(0,0)}
+function para(p){
+  let t=typeof p==='string'?p:(p.if&&!p.if()?null:p.t);
+  if(t===null||t===undefined)return '';
+  t=T(t);
+  t=esc(t).replace(/&lt;m&gt;/g,'<div class="msg">').replace(/&lt;\/m&gt;/g,'</div>').replace(/&lt;b&gt;/g,'<b>').replace(/&lt;\/b&gt;/g,'</b>').replace(/&lt;i&gt;/g,'<i>').replace(/&lt;\/i&gt;/g,'</i>');
+  if(t.startsWith('<div class="msg">'))return t;
+  return '<p>'+t+'</p>';
+}
+function cover(){
+  show(`<div class="cover"><div class="tag">Ek Interactive Love-Thriller</div>
+  <h1>RAAT 11:30</h1><p class="sub">Tumhare faisle. Tumhari kahani. Tumhara sach.</p>
+  <button class="go" id="start">SHURU KARO</button>
+  ${localStorage.getItem(KEY)?'<button class="go" style="background:transparent;border:1px solid var(--line)" id="cont">PEHLE WALI KAHANI JAARI RAKHO</button>':''}
+  <p class="center small" style="margin-top:40px">Ye kahani kaalpanik hai. Naam, jagah aur ghatnayein kaalpanik hain.</p></div>`);
+  document.getElementById('start').onclick=()=>{S=fresh();howto()};
+  const c=document.getElementById('cont');if(c)c.onclick=()=>{load();renderScene()};
+}
+function howto(){
+  show(`<h2>KAISE KHELEIN</h2><div class="box">
+  <p>Tum hi is kahani ke hero/heroine ho. Har bade mod par <b>4 vikalp</b> milenge.</p>
+  <p>Koi bhi vikalp "sahi" nahi hota. Tumhare faisle batayenge ki tum <i>kaun</i> ho — aur duniya tumse kaise pesh aayegi.</p>
+  <p>Chhoti-chhoti baatein yaad rakhi jaati hain: tumhare jhooth, tumhara bharosa, tumhari himmat. Kuch cheezein ghanto ke baad wapas aayengi.</p>
+  <p class="small">Progress is device par automatic save hoti hai.</p></div>
+  <button class="go" id="n">AAGE</button>`);
+  document.getElementById('n').onclick=personalize;
+}
+function personalize(){
+  show(`<h2>APNI KAHANI BANAO</h2>
+  <div class="box">
+  <label>Tumhara naam</label><input type="text" id="nm" maxlength="24" autocomplete="off">
+  <label>Tumhara gender</label><div class="opts">
+   <label class="o"><input type="radio" name="pg" value="m"><span>Male</span></label>
+   <label class="o"><input type="radio" name="pg" value="f"><span>Female</span></label>
+   <label class="o"><input type="radio" name="pg" value="n" checked><span>Prefer not to specify</span></label></div>
+  <label>Love interest ka naam</label><input type="text" id="li" maxlength="24" autocomplete="off">
+  <label>Love interest ka gender</label><div class="opts">
+   <label class="o"><input type="radio" name="lg" value="m"><span>Male</span></label>
+   <label class="o"><input type="radio" name="lg" value="f" checked><span>Female</span></label></div>
+  <label>Dost ka naam (optional)</label><div class="small" style="margin:-2px 0 6px">Khali chhodoge toh kahani ke liye ek naam de diya jayega.</div><input type="text" id="fr" maxlength="24" autocomplete="off">
+  <label>Dost ka gender</label><div class="opts">
+   <label class="o"><input type="radio" name="fg" value="m" checked><span>Male</span></label>
+   <label class="o"><input type="radio" name="fg" value="f"><span>Female</span></label></div>
+  <div class="err" id="err"></div></div>
+  <button class="go" id="go">KAHANI SHURU KARO</button>`);
+  document.getElementById('go').onclick=()=>{
+    const nm=document.getElementById('nm').value.trim(),li=document.getElementById('li').value.trim();
+    if(!nm||!li){document.getElementById('err').textContent='Apna naam aur love interest ka naam zaroor likho.';return}
+    S.name=nm;S.li=li;S.fr=document.getElementById('fr').value.trim();
+    S.pg=document.querySelector('input[name=pg]:checked').value;
+    S.lg=document.querySelector('input[name=lg]:checked').value;
+    S.fg=document.querySelector('input[name=fg]:checked').value;
+    if(!S.fr)S.fr=(S.fg==='f'?'Ananya':'Kabir');
+    S.scene='c1';save();chars();
+  };
+}
+function chars(){
+  const fr=S.fr?`<div class="box"><b>${esc(S.fr)}</b> — tumhara sabse kareebi dost. Hamesha saath, hamesha hans ke.</div>`:'';
+  show(`<h2>KIRDAAR</h2>
+  <div class="box"><b>${esc(S.name)}</b> — tum. Abhi tak tumhari kahani adhoori hai.</div>
+  <div class="box"><b>${esc(S.li)}</b> — college mein kuch hafte pehle ${S.lg==='f'?'aayi':'aaya'}. Muskuraht mein kuch aisa hai jo dil ko bechain karta hai.</div>${fr}
+  <div class="box"><b>Principal Arvind Mehra</b> — Principal. Sabka "doosra pitaji". Chai ke saath sawaal poochhna unki aadat hai.</div>
+  <div class="box"><b>Mrs. Lata Bisht</b> — purani library ki warden. Kam bolti hain. Zyada jaanti hain.</div>
+  <button class="go" id="n">KAHANI MEIN PRAVESH KARO</button>`);
+  document.getElementById('n').onclick=renderScene;
+}
+function renderScene(){
+  const sc=ST[S.scene];
+  if(!sc){show('<p>Scene nahi mila: '+esc(String(S.scene))+'</p>');return}
+  // one-time effects on entering a scene
+  if(!S._seen)S._seen={};
+  if(!S._seen[S.scene]){
+    S._seen[S.scene]=1;apply(sc.fx);
+    if(sc.setf)for(const k in sc.setf)S.flags[k]=sc.setf[k];
+    if(sc.clue&&!S.clues.includes(sc.clue))S.clues.push(sc.clue);
+    save();
+  }
+  let h=`<div class="chap">${esc(sc.chap)}</div>`;
+  if(/^c5/.test(S.scene)){h+=`<div class="box center"><b>PART 2 — CHAPTERS 5–12</b><br><span class="small">Part 1 ke faislon ka asar ab yahan se shuru hota hai.</span></div>`;}
+  if(S.scene==='part2_start'){h+=`<div class="box center"><b>PART 1 COMPLETE — CHAPTERS 1–4</b><br><span class="small">Ab Part 2 tumhare Chapter 4 ke faisle se continue hoga.</span></div>`;}
+  h+=sc.p.map(para).join('');
+  if(sc.choices){
+    h+=`<div class="choicehead">KYA KAROGE?</div>`;
+    sc.choices.forEach((c,i)=>{h+=`<button class="btn" data-i="${i}"><b>${'ABCD'[i]}.</b>${esc(T(c.t))}</button>`});
+  }else if(sc.ending){
+    h+=`<div class="end"><p>— PART 2 SAMAPT (CHAPTERS 5–12) —</p><button class="go" id="again">PHIR SE KHELO</button></div>`;
+  }else if(sc.next){
+    h+=`<button class="go" id="nx">${sc.next==='part2_start'?'PART 2 SHURU KARO':'AAGE BADHO'}</button>`;
+  }
+  show(h);
+  if(sc.choices){
+    document.querySelectorAll('.btn').forEach(b=>b.onclick=()=>{
+      const c=sc.choices[+b.dataset.i];
+      apply(c.fx);if(c.set)for(const k in c.set)S.flags[k]=c.set[k];
+      S.choices.push(S.scene+':'+'ABCD'[+b.dataset.i]);
+      S.scene=c.go;save();renderScene();
+    });
+  }else if(sc.ending){
+    document.getElementById('again').onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){};S=fresh();cover()};
+  }else if(sc.next){
+    document.getElementById('nx').onclick=()=>{
+      let next=sc.next;
+      if(S.scene==='part2_start'){
+        if(has('wentClock'))next='c5a';
+        else if(has('spiedLI'))next='c5b';
+        else if(has('followedBisht'))next='c5c';
+        else if(has('refusedLI'))next='c5d';
+        else next='c5a';
+      }
+      if(next==='p1_end' || next==='__PART2_ROUTE__') next='part2_start';
+      S.scene=next;save();renderScene();
+    };
+  }
+}
+cover();
+</script>
+</body>
+</html>
